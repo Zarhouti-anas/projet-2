@@ -1,0 +1,99 @@
+#include <iostream>
+#include <fstream>
+#include <iomanip>
+
+void systole(long long T[], long decalageK, long long valeur) {
+    for (int i = decalageK; i > 0; --i) {
+        T[i] = T[i - 1];
+    }
+    T[0] = valeur;
+}
+
+int main() {
+    std::string inputFileName, outputFileName;
+    long decalageK;
+
+    // Obtenir et valider les informations
+    std::cout << "Entrez le nom du fichier de données (sans extension) : ";
+    std::cin >> inputFileName;
+    inputFileName += ".txt";
+
+    std::ifstream inputFile(inputFileName);
+    if (!inputFile) {
+        std::cout << "Erreur : Le fichier de données n'existe pas.\n";
+        return 1;
+    }
+
+    std::cout << "Entrez le nom du fichier de rapport (sans extension) : ";
+    std::cin >> outputFileName;
+    outputFileName += ".txt";
+
+    std::cout << "Entrez la valeur de décalage pour le test de décalage (lag tests) [1, 20] : ";
+    std::cin >> decalageK;
+    if (decalageK < 1 || decalageK > 20) {
+        std::cout << "Erreur : La valeur de décalage doit être dans l'intervalle [1, 20].\n";
+        return 1;
+    }
+
+    // Initialiser le tableau à deux dimensions pour les fréquences
+    long long transitions[21][21] = { 0 };
+    long long currentData[20] = { 0 };
+
+    // Lire les données et accumuler les fréquences des transitions
+    long long data;
+    long long totalTransitions = 0;
+
+    while (inputFile >> data) {
+        systole(currentData, decalageK, data);
+
+        // Accumuler les fréquences des transitions
+        for (int i = 0; i <= decalageK; ++i) {
+            systole(transitions[i], decalageK, currentData[i]);
+        }
+
+        totalTransitions += (decalageK > 0) ? 1 : 0;
+    }
+
+    inputFile.close();
+
+    // Calculer et écrire les statistiques dans le fichier de rapport
+    std::ofstream outputFile(outputFileName);
+    if (!outputFile) {
+        std::cout << "Erreur : Impossible de créer le fichier de rapport.\n";
+        return 1;
+    }
+
+    outputFile << "Statistiques des transitions pour un test avec décalage " << decalageK << " :\n";
+    outputFile << "Type de transition\tFréquence\tErreur absolue\tErreur relative\n";
+
+    double absoluteErrorSum = 0.0;
+    double relativeErrorSum = 0.0;
+
+    for (int i = 0; i < 6; ++i) {
+        for (int j = 1; j <= 6; ++j) {
+            int transitionIndex = i * 6 + j;
+            long long observedFrequency = transitions[0][j - 1];
+            double expectedFrequency = static_cast<double>(totalTransitions) / 36.0;
+
+            double absoluteError = std::abs(observedFrequency - expectedFrequency);
+            double relativeError = absoluteError / expectedFrequency;
+
+            outputFile << i + 1 << " -> " << j << "\t\t" << observedFrequency << "\t\t" << std::fixed << std::setprecision(6) << absoluteError << "\t\t" << relativeError << "\n";
+
+            absoluteErrorSum += absoluteError;
+            relativeErrorSum += relativeError;
+        }
+    }
+
+    double meanAbsoluteError = absoluteErrorSum / 36.0;
+    double meanRelativeError = relativeErrorSum / 36.0;
+
+    outputFile << "\nMoyenne des erreurs absolues : " << meanAbsoluteError << "\n";
+    outputFile << "Moyenne des erreurs relatives : " << meanRelativeError << "\n";
+
+    outputFile.close();
+
+    std::cout << "Statistiques écrites dans le fichier : " << outputFileName << "\n";
+
+    return 0;
+}
